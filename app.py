@@ -76,6 +76,13 @@ with col_i2:
     st.session_state['D'] = st.number_input("Vessel Inner Dia., D (m)", value=st.session_state['D'], format="%.3f")
     st.session_state['H'] = st.number_input("Vessel Tan. Height, H (m)", value=st.session_state['H'], format="%.3f")
     st.session_state['D_p_um'] = st.number_input("Target Droplet, D_p (μm)", value=st.session_state['D_p_um'], step=50.0)
+    
+    with st.expander("ℹ️ Particle Size Guide"):
+        st.markdown("""
+        - **300 ~ 600 μm:** General Flare Header KO Drum (API 521).
+        - **100 ~ 300 μm:** Compressor Suction Drum (Prevents impeller erosion).
+        - **10 ~ 50 μm:** Fuel Gas KO Drum (Requires internal mesh pad / demister).
+        """)
 
 # --- Calculation Engine ---
 D_p = st.session_state['D_p_um'] / 1000000.0
@@ -160,7 +167,7 @@ def generate_html_report():
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             
-            /* Header Table */
+            /* Header Table (New 2-row Grid) */
             .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; overflow: hidden; white-space: nowrap; }}
             .header-table th {{ background-color: #f2f2f2; font-weight: bold; }}
