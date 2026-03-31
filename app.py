@@ -112,7 +112,6 @@ st.markdown("---")
 st.header("📊 3. Output Summary & Formulas (Web Preview)")
 
 st.markdown("**Output Summary Table**")
-# Applying inline styling to force 25% column width and nowrap on the web preview
 st.markdown(f"""
 <table style="width:100%; table-layout:fixed; border-collapse:collapse; text-align:left;">
   <tr>
@@ -172,11 +171,11 @@ def generate_html_report():
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             
-            /* Header Table (Maintains proportions) */
+            /* Header Table */
             .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
             .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; }}
             
-            /* Data Tables (Strictly 25% per column, no wrap) */
+            /* Data Tables */
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 6px; text-align: left; width: 25%; white-space: nowrap; overflow: hidden; }}
             .data-table th {{ background-color: #f2f2f2; font-weight: bold; }}
@@ -249,4 +248,35 @@ def generate_html_report():
                     \\[ Re = \\frac{{D_p \\cdot U_T \\cdot \\rho_v}}{{\\mu_v}} = \\frac{{{D_p} \\times {U_T:.4f} \\times {rho_V}}}{{{mu_V:.6f}}} = {Re_final:.2f} \\]
                 </div>
                 <div class="math-block">
-                    \
+                    \\[ C_D = \\frac{{24}}{{Re}} + \\frac{{3}}{{\\sqrt{{Re}}}} + 0.34 = \\frac{{24}}{{{Re_final:.2f}}} + \\frac{{3}}{{\\sqrt{{{Re_final:.2f}}}}} + 0.34 = \\mathbf{{{C_D_final:.4f}}} \\]
+                </div>
+            </div>
+
+            <div class="nobreak">
+                <h3>3.3 Terminal Settling Velocity (\\(U_T\\))</h3>
+                <div class="description">Ref: API Std 521 Equation for terminal velocity of a droplet settling against upward vapor flow.</div>
+                <div class="math-block">
+                    \\[ U_T = \\sqrt{{\\frac{{4 g D_p (\\rho_L - \\rho_v)}}{{3 \\rho_v C_D}}}} = \\sqrt{{\\frac{{4 \\times 9.81 \\times {D_p} \\times ({rho_L} - {rho_V})}}{{3 \\times {rho_V} \\times {C_D_final:.4f}}}}} = \\mathbf{{{U_T:.4f} \\text{{ m/s}}}} \\]
+                </div>
+            </div>
+
+            <div class="nobreak">
+                <h2>4. Engineering Conclusion</h2>
+                <div class="conclusion">
+                    {user_conclusion_html}
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
+
+st.markdown("---")
+st.header("📥 5. Download Final Report")
+html_bytes = generate_html_report().encode('utf-8')
+b64_html = base64.b64encode(html_bytes).decode()
+href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{tag_no}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Download HTML Report</a>'
+
+st.markdown(href, unsafe_allow_html=True)
+st.caption("Instructions: Verify the preview above, edit the conclusion, and click to download. Open the HTML file in Chrome/Edge and press **Ctrl + P** to print to PDF.")
