@@ -8,16 +8,17 @@ st.set_page_config(page_title="KO Drum Rating App", layout="wide")
 
 # --- UI: Metadata & Inputs ---
 st.title("KO Drum Rating Report Generator")
-st.markdown("Enter the process data below. Click the button at the bottom to download a fully formatted, print-ready HTML report.")
+st.markdown("Review the calculations on the screen, edit the Engineering Conclusion if necessary, and download the final HTML report.")
+st.markdown("---")
 
-st.header("1. Document Metadata")
+st.header("📝 1. Document Metadata")
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 project = col_m1.text_input("Project", "SK Trichem Project")
 tag_no = col_m2.text_input("Tag No.", "V-101")
 service = col_m3.text_input("Service", "Flare KO Drum")
 rev_no = col_m4.text_input("Revision", "0")
 
-st.header("2. Process & Equipment Input Data")
+st.header("⚙️ 2. Process & Equipment Input Data")
 col_i1, col_i2 = st.columns(2)
 
 with col_i1:
@@ -54,6 +55,42 @@ status = "PASS (Suitable)" if U_V < U_T else "FAIL (Carry-over Risk)"
 status_color = "green" if U_V < U_T else "red"
 current_date = datetime.now().strftime("%Y-%m-%d")
 
+st.markdown("---")
+
+# --- Web Screen Preview ---
+st.header("📊 3. Output Summary & Formulas (Web Preview)")
+
+col_o1, col_o2 = st.columns(2)
+with col_o1:
+    st.markdown("**Output Summary Table**")
+    st.markdown(f"""
+    | Parameter | Value | Parameter | Value |
+    | :--- | :--- | :--- | :--- |
+    | **Actual Vapor Vol. Flow ($Q_v$)** | {Q_V:.4f} m³/s | **Actual Vapor Velocity ($U_v$)** | **{U_V:.4f} m/s** |
+    | **Vessel Cross Area ($A$)** | {A:.4f} m² | **Terminal Settling Velocity ($U_T$)** | **{U_T:.4f} m/s** |
+    | **Final Drag Coefficient ($C_D$)** | {C_D_final:.4f} | **Design Suitability** | <span style='color:{status_color}'>**{status}**</span> |
+    """, unsafe_allow_html=True)
+
+with col_o2:
+    st.markdown("**Detailed Calculation Formulas**")
+    st.latex(rf"U_v = \frac{{Q_v}}{{A}} = \frac{{{Q_V:.4f}}}{{{A:.4f}}} = {U_V:.4f} \text{{ m/s}}")
+    st.latex(rf"Re = \frac{{D_p \cdot U_T \cdot \rho_v}}{{\mu_v}} = {Re_final:.2f}")
+    st.latex(rf"C_D = \frac{{24}}{{Re}} + \frac{{3}}{{\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f}")
+    st.latex(rf"U_T = \sqrt{{\frac{{4 g D_p (\rho_L - \rho_v)}}{{3 \rho_v C_D}}}} = {U_T:.4f} \text{{ m/s}}")
+
+st.markdown("---")
+
+# --- Editable Conclusion ---
+st.header("✍️ 4. Engineering Conclusion")
+st.caption("The text below will be inserted directly into the final HTML report. Edit it as needed to reflect your engineering judgment.")
+
+default_conclusion = f"""Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity (U_v = {U_V:.4f} m/s) is strictly maintained below the terminal settling velocity (U_T = {U_T:.4f} m/s) required for the target droplet size of {D_p_um} μm.
+
+Therefore, the existing vessel dimension (D = {D:.3f} m) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions."""
+
+user_conclusion = st.text_area("Edit Conclusion:", value=default_conclusion, height=150)
+user_conclusion_html = user_conclusion.replace('\n', '<br>') # Convert newlines for HTML
+
 # --- HTML Report Generation ---
 def generate_html_report():
     html_content = f"""
@@ -62,24 +99,15 @@ def generate_html_report():
     <head>
         <meta charset="UTF-8">
         <title>{tag_no} KO Drum Rating Report</title>
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        <script>
+        MathJax = {{
+          tex: {{ inlineMath: [['\\\\(', '\\\\)']] }}
+        }};
+        </script>
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <style>
-            body {{
-                font-family: 'Arial', sans-serif;
-                font-size: 12px;
-                color: #333;
-                margin: 0;
-                padding: 0;
-                background-color: #fff;
-            }}
-            .page-container {{
-                width: 190mm;
-                margin: 10mm auto;
-                padding: 10mm;
-                border: 2px solid #000;
-                box-sizing: border-box;
-            }}
+            body {{ font-family: 'Arial', sans-serif; font-size: 12px; color: #333; margin: 0; padding: 0; background-color: #fff; }}
+            .page-container {{ width: 190mm; margin: 10mm auto; padding: 10mm; border: 2px solid #000; box-sizing: border-box; }}
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
@@ -87,11 +115,10 @@ def generate_html_report():
             th {{ background-color: #f2f2f2; font-weight: bold; width: 25%; }}
             .description {{ font-size: 11px; color: #555; font-style: italic; margin-bottom: 15px; }}
             .math-block {{ margin: 10px 0; font-size: 13px; }}
-            .conclusion {{ background-color: #f9f9f9; padding: 10px; border: 1px dashed #333; }}
+            .conclusion {{ background-color: #f9f9f9; padding: 10px; border: 1px dashed #333; line-height: 1.5; }}
             @media print {{
                 body {{ background-color: #fff; }}
                 .page-container {{ border: 2px solid #000; margin: 0; padding: 5mm; width: 100%; box-shadow: none; }}
-                /* Force page break avoidance inside sections */
                 .nobreak {{ page-break-inside: avoid; }}
             }}
         </style>
@@ -100,9 +127,8 @@ def generate_html_report():
         <div class="page-container">
             <table>
                 <tr>
-                    <td rowspan="3" style="width: 20%; text-align: center; vertical-align: middle; color: #aaa;">
-                        [Company Logo Space]
-                    </td>
+                    <td rowspan="3" style="width: 20%; text-align: center; vertical-align: middle;">
+                        &nbsp; </td>
                     <td rowspan="3" style="width: 40%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: bold;">
                         KO Drum Rating Report
                     </td>
@@ -127,23 +153,23 @@ def generate_html_report():
             <table>
                 <tr><th colspan="2" style="background-color:#d9e1f2; text-align:center;">Fluid Properties</th><th colspan="2" style="background-color:#d9e1f2; text-align:center;">Equipment & Droplet Data</th></tr>
                 <tr>
-                    <th>Vapor Mass Flow ($W_v$)</th><td>{W_V:,.1f} kg/hr</td>
-                    <th>Vessel Inner Diameter ($D$)</th><td>{D:.3f} m</td>
+                    <th>Vapor Mass Flow (\\(W_v\\))</th><td>{W_V:,.1f} kg/hr</td>
+                    <th>Vessel Inner Diameter (\\(D\\))</th><td>{D:.3f} m</td>
                 </tr>
                 <tr>
-                    <th>Vapor Density ($\\rho_v$)</th><td>{rho_V:.4f} kg/m³</td>
-                    <th>Vessel Tangent Height ($H$)</th><td>{H:.3f} m</td>
+                    <th>Vapor Density (\\(\\rho_v\\))</th><td>{rho_V:.4f} kg/m³</td>
+                    <th>Vessel Tangent Height (\\(H\\))</th><td>{H:.3f} m</td>
                 </tr>
                 <tr>
-                    <th>Vapor Viscosity ($\\mu_v$)</th><td>{mu_V:.6f} kg/m·s</td>
-                    <th>Target Droplet Size ($D_p$)</th><td>{D_p_um} μm</td>
+                    <th>Vapor Viscosity (\\(\\mu_v\\))</th><td>{mu_V:.6f} kg/m·s</td>
+                    <th>Target Droplet Size (\\(D_p\\))</th><td>{D_p_um} μm</td>
                 </tr>
                 <tr>
-                    <th>Liquid Mass Flow ($W_L$)</th><td>{W_L:,.1f} kg/hr</td>
+                    <th>Liquid Mass Flow (\\(W_L\\))</th><td>{W_L:,.1f} kg/hr</td>
                     <th colspan="2"></th>
                 </tr>
                 <tr>
-                    <th>Liquid Density ($\\rho_L$)</th><td>{rho_L:.2f} kg/m³</td>
+                    <th>Liquid Density (\\(\\rho_L\\))</th><td>{rho_L:.2f} kg/m³</td>
                     <th colspan="2"></th>
                 </tr>
             </table>
@@ -151,15 +177,15 @@ def generate_html_report():
             <h2>2. Output Summary</h2>
             <table>
                 <tr>
-                    <th>Actual Vapor Vol. Flow ($Q_v$)</th><td>{Q_V:.4f} m³/s</td>
-                    <th>Actual Vapor Velocity ($U_v$)</th><td><b>{U_V:.4f} m/s</b></td>
+                    <th>Actual Vapor Vol. Flow (\\(Q_v\\))</th><td>{Q_V:.4f} m³/s</td>
+                    <th>Actual Vapor Velocity (\\(U_v\\))</th><td><b>{U_V:.4f} m/s</b></td>
                 </tr>
                 <tr>
-                    <th>Vessel Cross Area ($A$)</th><td>{A:.4f} m²</td>
-                    <th>Terminal Settling Velocity ($U_T$)</th><td><b>{U_T:.4f} m/s</b></td>
+                    <th>Vessel Cross Area (\\(A\\))</th><td>{A:.4f} m²</td>
+                    <th>Terminal Settling Velocity (\\(U_T\\))</th><td><b>{U_T:.4f} m/s</b></td>
                 </tr>
                 <tr>
-                    <th>Final Drag Coefficient ($C_D$)</th><td>{C_D_final:.4f}</td>
+                    <th>Final Drag Coefficient (\\(C_D\\))</th><td>{C_D_final:.4f}</td>
                     <th>Design Suitability</th><td style="color:{status_color}; font-weight:bold;">{status}</td>
                 </tr>
             </table>
@@ -167,7 +193,7 @@ def generate_html_report():
             <div class="nobreak">
                 <h2>3. Detailed Calculation & Formulas</h2>
                 
-                <h3>3.1 Actual Vapor Velocity ($U_v$)</h3>
+                <h3>3.1 Actual Vapor Velocity (\\(U_v\\))</h3>
                 <div class="description">Ref: Mass Conservation & Vessel Geometry</div>
                 <div class="math-block">
                     \\[ U_v = \\frac{{Q_v}}{{A}} = \\frac{{\\frac{{W_v}}{{\\rho_v \\times 3600}}}}{{\\frac{{\\pi D^2}}{{4}}}} = \\frac{{\\frac{{{W_V}}}{{{rho_V} \\times 3600}}}}{{\\frac{{\\pi ({D})^2}}{{4}}}} = \\mathbf{{{U_V:.4f} \\text{{ m/s}}}} \\]
@@ -175,8 +201,8 @@ def generate_html_report():
             </div>
 
             <div class="nobreak">
-                <h3>3.2 Final Drag Coefficient ($C_D$)</h3>
-                <div class="description">Ref: Intermediate Drag Law (API Std 521). Calculated via iterative convergence based on Particle Reynolds Number ($Re$).</div>
+                <h3>3.2 Final Drag Coefficient (\\(C_D\\))</h3>
+                <div class="description">Ref: Intermediate Drag Law (API Std 521). Calculated via iterative convergence based on Particle Reynolds Number (\\(Re\\)).</div>
                 <div class="math-block">
                     \\[ Re = \\frac{{D_p \\cdot U_T \\cdot \\rho_v}}{{\\mu_v}} = \\frac{{{D_p} \\times {U_T:.4f} \\times {rho_V}}}{{{mu_V:.6f}}} = {Re_final:.2f} \\]
                 </div>
@@ -186,7 +212,7 @@ def generate_html_report():
             </div>
 
             <div class="nobreak">
-                <h3>3.3 Terminal Settling Velocity ($U_T$)</h3>
+                <h3>3.3 Terminal Settling Velocity (\\(U_T\\))</h3>
                 <div class="description">Ref: API Std 521 Equation for terminal velocity of a droplet settling against upward vapor flow.</div>
                 <div class="math-block">
                     \\[ U_T = \\sqrt{{\\frac{{4 g D_p (\\rho_L - \\rho_v)}}{{3 \\rho_v C_D}}}} = \\sqrt{{\\frac{{4 \\times 9.81 \\times {D_p} \\times ({rho_L} - {rho_V})}}{{3 \\times {rho_V} \\times {C_D_final:.4f}}}}} = \\mathbf{{{U_T:.4f} \\text{{ m/s}}}} \\]
@@ -196,8 +222,7 @@ def generate_html_report():
             <div class="nobreak">
                 <h2>4. Engineering Conclusion</h2>
                 <div class="conclusion">
-                    <p>Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity ($U_v = {U_V:.4f} \\text{{ m/s}}$) is strictly maintained below the terminal settling velocity ($U_T = {U_T:.4f} \\text{{ m/s}}$) required for the target droplet size of {D_p_um} μm.</p>
-                    <p>Therefore, the existing vessel dimension ($D = {D:.3f} \\text{{ m}}$) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions.</p>
+                    {user_conclusion_html}
                 </div>
             </div>
         </div>
@@ -208,10 +233,10 @@ def generate_html_report():
 
 # --- Download Action ---
 st.markdown("---")
-st.header("3. Generate & Download")
+st.header("📥 5. Download Final Report")
 html_bytes = generate_html_report().encode('utf-8')
 b64_html = base64.b64encode(html_bytes).decode()
-href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{tag_no}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">📥 Download HTML Report</a>'
+href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{tag_no}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Download HTML Report</a>'
 
 st.markdown(href, unsafe_allow_html=True)
-st.caption("Instructions: Click the button to download the '.html' file. Open it with Google Chrome or Microsoft Edge, then press **Ctrl + P** to print as a perfectly formatted PDF. The MathJax equations require an internet connection to render upon opening.")
+st.caption("Instructions: Verify the preview above, edit the conclusion, and click to download. Open the HTML file in Chrome/Edge and press **Ctrl + P** to print to PDF.")
