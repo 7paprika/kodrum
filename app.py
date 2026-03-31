@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 
 # --- Page Configuration ---
-st.set_page_config(page_title="KO Drum Rating App", layout="wide")
+st.set_page_config(page_title="Vertical KO Drum Rating App", layout="wide")
 
 # --- Session State Initialization ---
 INPUT_KEYS = ['tag_no', 'rev_no', 'service', 'project', 'date_str', 
@@ -20,7 +20,7 @@ for key in INPUT_KEYS:
         elif key == 'service': st.session_state[key] = "Flare KO Drum"
         elif key == 'W_V': st.session_state[key] = 2239.8
         elif key == 'rho_V': st.session_state[key] = 5.679
-        elif key == 'mu_V': st.session_state[key] = 0.000009
+        elif key == 'mu_V': st.session_state[key] = 0.0090  # Default changed to cP
         elif key == 'W_L': st.session_state[key] = 25360.4
         elif key == 'rho_L': st.session_state[key] = 824.5
         elif key == 'D': st.session_state[key] = 0.6
@@ -47,7 +47,7 @@ st.sidebar.text_area("Copy JSON to Save", value=json.dumps(data_to_save, indent=
 st.sidebar.markdown("---")
 
 # --- UI: Metadata & Inputs ---
-st.title("KO Drum Rating Report Generator")
+st.title("Vertical KO Drum Rating Report Generator")
 st.markdown("---")
 
 st.header("📝 1. Document Metadata")
@@ -67,12 +67,12 @@ with col_i1:
     st.subheader("Fluid Properties")
     st.session_state['W_V'] = st.number_input("Vapor Mass Flow, W_v (kg/hr)", value=st.session_state['W_V'], step=100.0)
     st.session_state['rho_V'] = st.number_input("Vapor Density, ρ_v (kg/m³)", value=st.session_state['rho_V'], format="%.4f")
-    st.session_state['mu_V'] = st.number_input("Vapor Viscosity, μ_v (kg/m·s)", value=st.session_state['mu_V'], format="%.6f")
+    st.session_state['mu_V'] = st.number_input("Vapor Viscosity, μ_v (cP)", value=st.session_state['mu_V'], format="%.4f")
     st.session_state['W_L'] = st.number_input("Liquid Mass Flow, W_L (kg/hr)", value=st.session_state['W_L'], step=1000.0)
     st.session_state['rho_L'] = st.number_input("Liquid Density, ρ_L (kg/m³)", value=st.session_state['rho_L'], format="%.2f")
 
 with col_i2:
-    st.subheader("Equipment & Droplet Specs")
+    st.subheader("Equipment & Droplet Specs (Vertical)")
     st.session_state['D'] = st.number_input("Vessel Inner Dia., D (m)", value=st.session_state['D'], format="%.3f")
     st.session_state['H'] = st.number_input("Vessel Tan. Height, H (m)", value=st.session_state['H'], format="%.3f")
     st.session_state['D_p_um'] = st.number_input("Target Droplet, D_p (μm)", value=st.session_state['D_p_um'], step=50.0)
@@ -93,8 +93,10 @@ U_V = Q_V / A
 
 U_T = 0.5
 Re_final, C_D_final = 0, 0
+mu_V_si = st.session_state['mu_V'] / 1000.0  # cP to kg/m.s conversion for Re calculation
+
 for _ in range(10):
-    Re_final = (D_p * U_T * st.session_state['rho_V']) / st.session_state['mu_V']
+    Re_final = (D_p * U_T * st.session_state['rho_V']) / mu_V_si
     C_D_final = (24 / Re_final) + (3 / math.sqrt(Re_final)) + 0.34 if Re_final > 0 else 0.34
     U_T = math.sqrt((4 * g * D_p * (st.session_state['rho_L'] - st.session_state['rho_V'])) / (3 * st.session_state['rho_V'] * C_D_final))
 
@@ -144,7 +146,7 @@ st.header("✍️ 4. Engineering Conclusion")
 if not st.session_state['user_conclusion']:
     st.session_state['user_conclusion'] = f"""Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity (U_v = {U_V:.4f} m/s) is strictly maintained below the terminal settling velocity (U_T = {U_T:.4f} m/s) required for the target droplet size of {st.session_state['D_p_um']} μm.
 
-Therefore, the existing vessel dimension (D = {st.session_state['D']:.3f} m) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions."""
+Therefore, the existing vertical vessel dimension (D = {st.session_state['D']:.3f} m) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions."""
 
 st.session_state['user_conclusion'] = st.text_area("Edit Conclusion:", value=st.session_state['user_conclusion'], height=150)
 user_conclusion_html = st.session_state['user_conclusion'].replace('\n', '<br>')
@@ -156,7 +158,7 @@ def generate_html_report():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>{st.session_state['tag_no']} KO Drum Rating Report</title>
+        <title>{st.session_state['tag_no']} Vertical KO Drum Rating Report</title>
         <script>
         MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']] }} }};
         </script>
@@ -167,7 +169,7 @@ def generate_html_report():
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             
-            /* Header Table (New 2-row Grid) */
+            /* Header Table (Logo removed, 100% distribution) */
             .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; overflow: hidden; white-space: nowrap; }}
             .header-table th {{ background-color: #f2f2f2; font-weight: bold; }}
@@ -189,17 +191,16 @@ def generate_html_report():
     <body>
         <div class="page-container">
             
-            <h1>KO Drum Rating Report</h1>
+            <h1>Vertical KO Drum Rating Report</h1>
             
             <table class="header-table">
                 <tr>
-                    <td rowspan="2" style="width: 15%; text-align: center;">&nbsp;</td>
                     <th style="width: 15%;">Project</th>
-                    <td style="width: 30%;">{st.session_state['project']}</td>
-                    <th style="width: 8%;">Rev.</th>
-                    <td style="width: 8%;">{st.session_state['rev_no']}</td>
-                    <th style="width: 8%;">Date</th>
-                    <td style="width: 16%;">{st.session_state['date_str']}</td>
+                    <td style="width: 40%;">{st.session_state['project']}</td>
+                    <th style="width: 10%;">Rev.</th>
+                    <td style="width: 10%;">{st.session_state['rev_no']}</td>
+                    <th style="width: 10%;">Date</th>
+                    <td style="width: 15%;">{st.session_state['date_str']}</td>
                 </tr>
                 <tr>
                     <th>Tag No.</th>
@@ -214,7 +215,7 @@ def generate_html_report():
                 <tr><th colspan="2" style="text-align:center;">Fluid Properties</th><th colspan="2" style="text-align:center;">Equipment & Droplet Data</th></tr>
                 <tr><th>Vapor Mass Flow (\\(W_v\\))</th><td>{st.session_state['W_V']:,.1f} kg/hr</td><th>Vessel Inner Dia. (\\(D\\))</th><td>{st.session_state['D']:.3f} m</td></tr>
                 <tr><th>Vapor Density (\\(\\rho_v\\))</th><td>{st.session_state['rho_V']:.4f} kg/m³</td><th>Vessel Tan. Height (\\(H\\))</th><td>{st.session_state['H']:.3f} m</td></tr>
-                <tr><th>Vapor Viscosity (\\(\\mu_v\\))</th><td>{st.session_state['mu_V']:.6f} kg/m·s</td><th>Target Droplet (\\(D_p\\))</th><td>{st.session_state['D_p_um']} μm</td></tr>
+                <tr><th>Vapor Viscosity (\\(\\mu_v\\))</th><td>{st.session_state['mu_V']:.4f} cP</td><th>Target Droplet (\\(D_p\\))</th><td>{st.session_state['D_p_um']} μm</td></tr>
                 <tr><th>Liquid Mass Flow (\\(W_L\\))</th><td>{st.session_state['W_L']:,.1f} kg/hr</td><th colspan="2" style="background-color:#fff;"></th></tr>
                 <tr><th>Liquid Density (\\(\\rho_L\\))</th><td>{st.session_state['rho_L']:.2f} kg/m³</td><th colspan="2" style="background-color:#fff;"></th></tr>
             </table>
