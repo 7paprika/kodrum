@@ -8,7 +8,6 @@ from datetime import datetime
 st.set_page_config(page_title="KO Drum Rating App", layout="wide")
 
 # --- Session State Initialization ---
-# 'user_conclusion' added to keys for persistence
 INPUT_KEYS = ['tag_no', 'rev_no', 'service', 'project', 'date_str', 
               'W_V', 'rho_V', 'mu_V', 'W_L', 'rho_L', 'D', 'H', 'D_p_um', 'user_conclusion']
 
@@ -95,8 +94,48 @@ for _ in range(10):
 status = "PASS (Suitable)" if U_V < U_T else "FAIL (Carry-over Risk)"
 status_color = "green" if U_V < U_T else "red"
 
+st.markdown("---")
+
+# --- Web Screen Preview (Restored) ---
+st.header("📊 3. Output Summary & Formulas (Web Preview)")
+
+col_o1, col_o2 = st.columns(2)
+with col_o1:
+    st.markdown("**Output Summary Table**")
+    st.markdown(f"""
+    <table style="width:100%; table-layout:fixed; border-collapse:collapse; text-align:left;">
+      <tr>
+        <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Vol. Flow ($Q_v$)</th>
+        <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;">{Q_V:.4f} m³/s</td>
+        <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Velocity ($U_v$)</th>
+        <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_V:.4f} m/s</b></td>
+      </tr>
+      <tr>
+        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vessel Cross Area ($A$)</th>
+        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{A:.4f} m²</td>
+        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Terminal Velocity ($U_T$)</th>
+        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_T:.4f} m/s</b></td>
+      </tr>
+      <tr>
+        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Drag Coefficient ($C_D$)</th>
+        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{C_D_final:.4f}</td>
+        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Design Suitability</th>
+        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap; color:{status_color}; font-weight:bold;">{status}</td>
+      </tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+with col_o2:
+    st.markdown("**Detailed Calculation Formulas**")
+    st.latex(rf"U_v = \frac{{Q_v}}{{A}} = \frac{{{Q_V:.4f}}}{{{A:.4f}}} = {U_V:.4f} \text{{ m/s}}")
+    st.latex(rf"Re = \frac{{D_p \cdot U_T \cdot \rho_v}}{{\mu_v}} = {Re_final:.2f}")
+    st.latex(rf"C_D = \frac{{24}}{{Re}} + \frac{{3}}{{\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f}")
+    st.latex(rf"U_T = \sqrt{{\frac{{4 g D_p (\rho_L - \rho_v)}}{{3 \rho_v C_D}}}} = {U_T:.4f} \text{{ m/s}}")
+
+st.markdown("---")
+
 # --- Editable Conclusion ---
-st.header("✍️ 3. Engineering Conclusion")
+st.header("✍️ 4. Engineering Conclusion")
 if not st.session_state['user_conclusion']:
     st.session_state['user_conclusion'] = f"""Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity (U_v = {U_V:.4f} m/s) is strictly maintained below the terminal settling velocity (U_T = {U_T:.4f} m/s) required for the target droplet size of {st.session_state['D_p_um']} μm.
 
@@ -202,7 +241,7 @@ def generate_html_report():
     return html_content
 
 st.markdown("---")
-st.header("📥 4. Download Final Report")
+st.header("📥 5. Download Final Report")
 html_bytes = generate_html_report().encode('utf-8')
 b64_html = base64.b64encode(html_bytes).decode()
 href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{st.session_state["tag_no"]}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Download HTML Report</a>'
