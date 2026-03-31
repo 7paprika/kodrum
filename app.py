@@ -8,8 +8,9 @@ from datetime import datetime
 st.set_page_config(page_title="KO Drum Rating App", layout="wide")
 
 # --- Session State Initialization ---
+# 'user_conclusion' added to keys for persistence
 INPUT_KEYS = ['tag_no', 'rev_no', 'service', 'project', 'date_str', 
-              'W_V', 'rho_V', 'mu_V', 'W_L', 'rho_L', 'D', 'H', 'D_p_um']
+              'W_V', 'rho_V', 'mu_V', 'W_L', 'rho_L', 'D', 'H', 'D_p_um', 'user_conclusion']
 
 for key in INPUT_KEYS:
     if key not in st.session_state:
@@ -26,6 +27,7 @@ for key in INPUT_KEYS:
         elif key == 'D': st.session_state[key] = 0.6
         elif key == 'H': st.session_state[key] = 1.53
         elif key == 'D_p_um': st.session_state[key] = 300.0
+        elif key == 'user_conclusion': st.session_state[key] = ""
 
 # --- Sidebar: Secure JSON Data Loader ---
 st.sidebar.header("💾 Secure JSON Data Loader")
@@ -37,7 +39,7 @@ if st.sidebar.button("Load JSON Data"):
             for k, v in data.items():
                 if k in st.session_state:
                     st.session_state[k] = v
-            st.sidebar.success("✅ Data applied! Please interact to refresh.")
+            st.sidebar.success("✅ Data applied! Please refresh.")
         except json.JSONDecodeError:
             st.sidebar.error("❌ Invalid JSON format.")
 
@@ -47,15 +49,17 @@ st.sidebar.markdown("---")
 
 # --- UI: Metadata & Inputs ---
 st.title("KO Drum Rating Report Generator")
-st.markdown("Review the calculations, edit the Engineering Conclusion, and download the HTML report.")
 st.markdown("---")
 
 st.header("📝 1. Document Metadata")
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 st.session_state['project'] = col_m1.text_input("Project", value=st.session_state['project'])
-st.session_state['tag_no'] = col_m2.text_input("Tag No.", value=st.session_state['tag_no'])
-st.session_state['service'] = col_m3.text_input("Service", value=st.session_state['service'])
-st.session_state['rev_no'] = col_m4.text_input("Revision", value=st.session_state['rev_no'])
+st.session_state['rev_no'] = col_m2.text_input("Revision", value=st.session_state['rev_no'])
+st.session_state['date_str'] = col_m3.text_input("Date", value=st.session_state['date_str'])
+
+col_m_sub1, col_m_sub2 = st.columns(2)
+st.session_state['tag_no'] = col_m_sub1.text_input("Tag No.", value=st.session_state['tag_no'])
+st.session_state['service'] = col_m_sub2.text_input("Service", value=st.session_state['service'])
 
 st.header("⚙️ 2. Process & Equipment Input Data")
 col_i1, col_i2 = st.columns(2)
@@ -75,83 +79,31 @@ with col_i2:
     st.session_state['D_p_um'] = st.number_input("Target Droplet, D_p (μm)", value=st.session_state['D_p_um'], step=50.0)
 
 # --- Calculation Engine ---
-W_V = st.session_state['W_V']
-rho_V = st.session_state['rho_V']
-mu_V = st.session_state['mu_V']
-W_L = st.session_state['W_L']
-rho_L = st.session_state['rho_L']
-D = st.session_state['D']
-H = st.session_state['H']
-D_p_um = st.session_state['D_p_um']
-tag_no = st.session_state['tag_no']
-project = st.session_state['project']
-service = st.session_state['service']
-rev_no = st.session_state['rev_no']
-current_date = st.session_state['date_str']
-
-D_p = D_p_um / 1000000.0
+D_p = st.session_state['D_p_um'] / 1000000.0
 g = 9.81
-
-Q_V = W_V / (rho_V * 3600)
-A = math.pi * (D**2) / 4
+Q_V = st.session_state['W_V'] / (st.session_state['rho_V'] * 3600)
+A = math.pi * (st.session_state['D']**2) / 4
 U_V = Q_V / A
 
 U_T = 0.5
 Re_final, C_D_final = 0, 0
 for _ in range(10):
-    Re_final = (D_p * U_T * rho_V) / mu_V
+    Re_final = (D_p * U_T * st.session_state['rho_V']) / st.session_state['mu_V']
     C_D_final = (24 / Re_final) + (3 / math.sqrt(Re_final)) + 0.34 if Re_final > 0 else 0.34
-    U_T = math.sqrt((4 * g * D_p * (rho_L - rho_V)) / (3 * rho_V * C_D_final))
+    U_T = math.sqrt((4 * g * D_p * (st.session_state['rho_L'] - st.session_state['rho_V'])) / (3 * st.session_state['rho_V'] * C_D_final))
 
 status = "PASS (Suitable)" if U_V < U_T else "FAIL (Carry-over Risk)"
 status_color = "green" if U_V < U_T else "red"
 
-st.markdown("---")
-
-# --- Web Screen Preview ---
-st.header("📊 3. Output Summary & Formulas (Web Preview)")
-
-st.markdown("**Output Summary Table**")
-st.markdown(f"""
-<table style="width:100%; table-layout:fixed; border-collapse:collapse; text-align:left;">
-  <tr>
-    <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Vol. Flow ($Q_v$)</th>
-    <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;">{Q_V:.4f} m³/s</td>
-    <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Velocity ($U_v$)</th>
-    <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_V:.4f} m/s</b></td>
-  </tr>
-  <tr>
-    <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vessel Cross Area ($A$)</th>
-    <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{A:.4f} m²</td>
-    <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Terminal Velocity ($U_T$)</th>
-    <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_T:.4f} m/s</b></td>
-  </tr>
-  <tr>
-    <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Drag Coefficient ($C_D$)</th>
-    <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{C_D_final:.4f}</td>
-    <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Design Suitability</th>
-    <td style="border:1px solid #ccc; padding:8px; white-space:nowrap; color:{status_color}; font-weight:bold;">{status}</td>
-  </tr>
-</table>
-""", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("**Detailed Calculation Formulas**")
-st.latex(rf"U_v = \frac{{Q_v}}{{A}} = \frac{{{Q_V:.4f}}}{{{A:.4f}}} = {U_V:.4f} \text{{ m/s}}")
-st.latex(rf"Re = \frac{{D_p \cdot U_T \cdot \rho_v}}{{\mu_v}} = {Re_final:.2f}")
-st.latex(rf"C_D = \frac{{24}}{{Re}} + \frac{{3}}{{\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f}")
-st.latex(rf"U_T = \sqrt{{\frac{{4 g D_p (\rho_L - \rho_v)}}{{3 \rho_v C_D}}}} = {U_T:.4f} \text{{ m/s}}")
-
-st.markdown("---")
-
 # --- Editable Conclusion ---
-st.header("✍️ 4. Engineering Conclusion")
-default_conclusion = f"""Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity (U_v = {U_V:.4f} m/s) is strictly maintained below the terminal settling velocity (U_T = {U_T:.4f} m/s) required for the target droplet size of {D_p_um} μm.
+st.header("✍️ 3. Engineering Conclusion")
+if not st.session_state['user_conclusion']:
+    st.session_state['user_conclusion'] = f"""Based on the rigorous iterative hydraulic calculations utilizing the Intermediate Drag Law specified in API Standard 521, the actual upward vapor velocity (U_v = {U_V:.4f} m/s) is strictly maintained below the terminal settling velocity (U_T = {U_T:.4f} m/s) required for the target droplet size of {st.session_state['D_p_um']} μm.
 
-Therefore, the existing vessel dimension (D = {D:.3f} m) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions."""
+Therefore, the existing vessel dimension (D = {st.session_state['D']:.3f} m) provides adequate cross-sectional area to ensure the successful disengagement of liquid droplets from the vapor phase, meeting the KOSHA PSM process safety design intent under the given operating conditions."""
 
-user_conclusion = st.text_area("Edit Conclusion:", value=default_conclusion, height=150)
-user_conclusion_html = user_conclusion.replace('\n', '<br>')
+st.session_state['user_conclusion'] = st.text_area("Edit Conclusion:", value=st.session_state['user_conclusion'], height=150)
+user_conclusion_html = st.session_state['user_conclusion'].replace('\n', '<br>')
 
 # --- HTML Report Generation ---
 def generate_html_report():
@@ -160,7 +112,7 @@ def generate_html_report():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>{tag_no} KO Drum Rating Report</title>
+        <title>{st.session_state['tag_no']} KO Drum Rating Report</title>
         <script>
         MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']] }} }};
         </script>
@@ -171,21 +123,21 @@ def generate_html_report():
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             
-            /* Header Table */
-            .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; }}
-            .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; }}
+            /* Header Table (New 2-row Grid) */
+            .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
+            .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; overflow: hidden; white-space: nowrap; }}
+            .header-table th {{ background-color: #f2f2f2; font-weight: bold; }}
             
-            /* Data Tables */
+            /* Data Tables (Strict 25% Grid) */
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 6px; text-align: left; width: 25%; white-space: nowrap; overflow: hidden; }}
             .data-table th {{ background-color: #f2f2f2; font-weight: bold; }}
             
-            .description {{ font-size: 11px; color: #555; font-style: italic; margin-bottom: 15px; }}
+            .description {{ font-size: 11px; color: #555; font-style: italic; margin-bottom: 10px; }}
             .math-block {{ margin: 10px 0; font-size: 13px; }}
             .conclusion {{ background-color: #f9f9f9; padding: 10px; border: 1px dashed #333; line-height: 1.5; }}
             @media print {{
-                body {{ background-color: #fff; }}
-                .page-container {{ border: 2px solid #000; margin: 0; padding: 5mm; width: 100%; box-shadow: none; }}
+                .page-container {{ border: 2px solid #000; margin: 0; padding: 5mm; width: 100%; }}
                 .nobreak {{ page-break-inside: avoid; }}
             }}
         </style>
@@ -194,35 +146,32 @@ def generate_html_report():
         <div class="page-container">
             <table class="header-table">
                 <tr>
-                    <td rowspan="3" style="width: 20%; text-align: center; vertical-align: middle;">&nbsp;</td>
-                    <td rowspan="3" style="width: 40%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: bold;">
-                        KO Drum Rating Report
-                    </td>
-                    <th style="width: 15%; background-color: #f2f2f2;">Project</th>
-                    <td>{project}</td>
+                    <td rowspan="2" style="width: 15%; text-align: center;">&nbsp;</td>
+                    <th style="width: 15%;">Project</th>
+                    <td style="width: 30%;">{st.session_state['project']}</td>
+                    <th style="width: 8%;">Rev.</th>
+                    <td style="width: 8%;">{st.session_state['rev_no']}</td>
+                    <th style="width: 8%;">Date</th>
+                    <td style="width: 16%;">{st.session_state['date_str']}</td>
                 </tr>
                 <tr>
-                    <th style="background-color: #f2f2f2;">Tag No.</th>
-                    <td>{tag_no}</td>
-                </tr>
-                <tr>
-                    <th style="background-color: #f2f2f2;">Date / Rev.</th>
-                    <td>{current_date} / Rev.{rev_no}</td>
-                </tr>
-                <tr>
-                    <th colspan="2" style="background-color: #f2f2f2;">Service</th>
-                    <td colspan="2">{service}</td>
+                    <th>Tag No.</th>
+                    <td>{st.session_state['tag_no']}</td>
+                    <th>Service</th>
+                    <td colspan="3">{st.session_state['service']}</td>
                 </tr>
             </table>
+
+            <h1>KO Drum Rating Report</h1>
 
             <h2>1. Input Data</h2>
             <table class="data-table">
                 <tr><th colspan="2" style="text-align:center;">Fluid Properties</th><th colspan="2" style="text-align:center;">Equipment & Droplet Data</th></tr>
-                <tr><th>Vapor Mass Flow (\\(W_v\\))</th><td>{W_V:,.1f} kg/hr</td><th>Vessel Inner Dia. (\\(D\\))</th><td>{D:.3f} m</td></tr>
-                <tr><th>Vapor Density (\\(\\rho_v\\))</th><td>{rho_V:.4f} kg/m³</td><th>Vessel Tan. Height (\\(H\\))</th><td>{H:.3f} m</td></tr>
-                <tr><th>Vapor Viscosity (\\(\\mu_v\\))</th><td>{mu_V:.6f} kg/m·s</td><th>Target Droplet (\\(D_p\\))</th><td>{D_p_um} μm</td></tr>
-                <tr><th>Liquid Mass Flow (\\(W_L\\))</th><td>{W_L:,.1f} kg/hr</td><th colspan="2" style="background-color:#fff;"></th></tr>
-                <tr><th>Liquid Density (\\(\\rho_L\\))</th><td>{rho_L:.2f} kg/m³</td><th colspan="2" style="background-color:#fff;"></th></tr>
+                <tr><th>Vapor Mass Flow (\\(W_v\\))</th><td>{st.session_state['W_V']:,.1f} kg/hr</td><th>Vessel Inner Dia. (\\(D\\))</th><td>{st.session_state['D']:.3f} m</td></tr>
+                <tr><th>Vapor Density (\\(\\rho_v\\))</th><td>{st.session_state['rho_V']:.4f} kg/m³</td><th>Vessel Tan. Height (\\(H\\))</th><td>{st.session_state['H']:.3f} m</td></tr>
+                <tr><th>Vapor Viscosity (\\(\\mu_v\\))</th><td>{st.session_state['mu_V']:.6f} kg/m·s</td><th>Target Droplet (\\(D_p\\))</th><td>{st.session_state['D_p_um']} μm</td></tr>
+                <tr><th>Liquid Mass Flow (\\(W_L\\))</th><td>{st.session_state['W_L']:,.1f} kg/hr</td><th colspan="2" style="background-color:#fff;"></th></tr>
+                <tr><th>Liquid Density (\\(\\rho_L\\))</th><td>{st.session_state['rho_L']:.2f} kg/m³</td><th colspan="2" style="background-color:#fff;"></th></tr>
             </table>
 
             <h2>2. Output Summary</h2>
@@ -233,38 +182,18 @@ def generate_html_report():
             </table>
 
             <div class="nobreak">
-                <h2>3. Detailed Calculation & Formulas</h2>
-                <h3>3.1 Actual Vapor Velocity (\\(U_v\\))</h3>
-                <div class="description">Ref: Mass Conservation & Vessel Geometry</div>
+                <h2>3. Detailed Calculations</h2>
                 <div class="math-block">
-                    \\[ U_v = \\frac{{Q_v}}{{A}} = \\frac{{\\frac{{W_v}}{{\\rho_v \\times 3600}}}}{{\\frac{{\\pi D^2}}{{4}}}} = \\frac{{\\frac{{{W_V}}}{{{rho_V} \\times 3600}}}}{{\\frac{{\\pi ({D})^2}}{{4}}}} = \\mathbf{{{U_V:.4f} \\text{{ m/s}}}} \\]
-                </div>
-            </div>
-
-            <div class="nobreak">
-                <h3>3.2 Final Drag Coefficient (\\(C_D\\))</h3>
-                <div class="description">Ref: Intermediate Drag Law (API Std 521). Calculated via iterative convergence based on Particle Reynolds Number (\\(Re\\)).</div>
-                <div class="math-block">
-                    \\[ Re = \\frac{{D_p \\cdot U_T \\cdot \\rho_v}}{{\\mu_v}} = \\frac{{{D_p} \\times {U_T:.4f} \\times {rho_V}}}{{{mu_V:.6f}}} = {Re_final:.2f} \\]
-                </div>
-                <div class="math-block">
-                    \\[ C_D = \\frac{{24}}{{Re}} + \\frac{{3}}{{\\sqrt{{Re}}}} + 0.34 = \\frac{{24}}{{{Re_final:.2f}}} + \\frac{{3}}{{\\sqrt{{{Re_final:.2f}}}}} + 0.34 = \\mathbf{{{C_D_final:.4f}}} \\]
-                </div>
-            </div>
-
-            <div class="nobreak">
-                <h3>3.3 Terminal Settling Velocity (\\(U_T\\))</h3>
-                <div class="description">Ref: API Std 521 Equation for terminal velocity of a droplet settling against upward vapor flow.</div>
-                <div class="math-block">
-                    \\[ U_T = \\sqrt{{\\frac{{4 g D_p (\\rho_L - \\rho_v)}}{{3 \\rho_v C_D}}}} = \\sqrt{{\\frac{{4 \\times 9.81 \\times {D_p} \\times ({rho_L} - {rho_V})}}{{3 \\times {rho_V} \\times {C_D_final:.4f}}}}} = \\mathbf{{{U_T:.4f} \\text{{ m/s}}}} \\]
+                    \\[ U_v = \\frac{{W_v}}{{\\rho_v \\cdot 3600 \\cdot A}} = \\mathbf{{{U_V:.4f} \\text{{ m/s}}}} \\]
+                    \\[ Re = \\frac{{D_p \\cdot U_T \\cdot \\rho_v}}{{\\mu_v}} = {Re_final:.2f} \\]
+                    \\[ C_D = \\frac{{24}}{{Re}} + \\frac{{3}}{{\\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f} \\]
+                    \\[ U_T = \\sqrt{{\\frac{{4 g D_p (\\rho_L - \\rho_v)}}{{3 \\rho_v C_D}}}} = \\mathbf{{{U_T:.4f} \\text{{ m/s}}}} \\]
                 </div>
             </div>
 
             <div class="nobreak">
                 <h2>4. Engineering Conclusion</h2>
-                <div class="conclusion">
-                    {user_conclusion_html}
-                </div>
+                <div class="conclusion">{user_conclusion_html}</div>
             </div>
         </div>
     </body>
@@ -273,10 +202,8 @@ def generate_html_report():
     return html_content
 
 st.markdown("---")
-st.header("📥 5. Download Final Report")
+st.header("📥 4. Download Final Report")
 html_bytes = generate_html_report().encode('utf-8')
 b64_html = base64.b64encode(html_bytes).decode()
-href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{tag_no}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Download HTML Report</a>'
-
+href = f'<a href="data:text/html;charset=utf-8;base64,{b64_html}" download="{st.session_state["tag_no"]}_Rating_Report.html" style="background-color: #0078D7; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Download HTML Report</a>'
 st.markdown(href, unsafe_allow_html=True)
-st.caption("Instructions: Verify the preview above, edit the conclusion, and click to download. Open the HTML file in Chrome/Edge and press **Ctrl + P** to print to PDF.")
