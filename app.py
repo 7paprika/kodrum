@@ -96,41 +96,25 @@ status_color = "green" if U_V < U_T else "red"
 
 st.markdown("---")
 
-# --- Web Screen Preview (Restored) ---
+# --- Web Screen Preview ---
 st.header("📊 3. Output Summary & Formulas (Web Preview)")
 
-col_o1, col_o2 = st.columns(2)
-with col_o1:
-    st.markdown("**Output Summary Table**")
-    st.markdown(f"""
-    <table style="width:100%; table-layout:fixed; border-collapse:collapse; text-align:left;">
-      <tr>
-        <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Vol. Flow ($Q_v$)</th>
-        <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;">{Q_V:.4f} m³/s</td>
-        <th style="width:25%; border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vapor Velocity ($U_v$)</th>
-        <td style="width:25%; border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_V:.4f} m/s</b></td>
-      </tr>
-      <tr>
-        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Vessel Cross Area ($A$)</th>
-        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{A:.4f} m²</td>
-        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Terminal Velocity ($U_T$)</th>
-        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;"><b>{U_T:.4f} m/s</b></td>
-      </tr>
-      <tr>
-        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Drag Coefficient ($C_D$)</th>
-        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap;">{C_D_final:.4f}</td>
-        <th style="border:1px solid #ccc; padding:8px; background-color:#f2f2f2; white-space:nowrap;">Design Suitability</th>
-        <td style="border:1px solid #ccc; padding:8px; white-space:nowrap; color:{status_color}; font-weight:bold;">{status}</td>
-      </tr>
-    </table>
-    """, unsafe_allow_html=True)
+# Using Native Markdown Table to prevent CSS overlapping issues in Web Preview
+st.markdown("**Output Summary Table**")
+st.markdown(f"""
+| Parameter | Value | Parameter | Value |
+| :--- | :--- | :--- | :--- |
+| **Vapor Vol. Flow ($Q_v$)** | {Q_V:.4f} m³/s | **Vapor Velocity ($U_v$)** | **{U_V:.4f} m/s** |
+| **Vessel Cross Area ($A$)** | {A:.4f} m² | **Terminal Velocity ($U_T$)** | **{U_T:.4f} m/s** |
+| **Drag Coefficient ($C_D$)** | {C_D_final:.4f} | **Design Suitability** | <span style='color:{status_color}; font-weight:bold;'>{status}</span> |
+""", unsafe_allow_html=True)
 
-with col_o2:
-    st.markdown("**Detailed Calculation Formulas**")
-    st.latex(rf"U_v = \frac{{Q_v}}{{A}} = \frac{{{Q_V:.4f}}}{{{A:.4f}}} = {U_V:.4f} \text{{ m/s}}")
-    st.latex(rf"Re = \frac{{D_p \cdot U_T \cdot \rho_v}}{{\mu_v}} = {Re_final:.2f}")
-    st.latex(rf"C_D = \frac{{24}}{{Re}} + \frac{{3}}{{\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f}")
-    st.latex(rf"U_T = \sqrt{{\frac{{4 g D_p (\rho_L - \rho_v)}}{{3 \rho_v C_D}}}} = {U_T:.4f} \text{{ m/s}}")
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("**Detailed Calculation Formulas**")
+st.latex(rf"U_v = \frac{{Q_v}}{{A}} = \frac{{{Q_V:.4f}}}{{{A:.4f}}} = {U_V:.4f} \text{{ m/s}}")
+st.latex(rf"Re = \frac{{D_p \cdot U_T \cdot \rho_v}}{{\mu_v}} = {Re_final:.2f}")
+st.latex(rf"C_D = \frac{{24}}{{Re}} + \frac{{3}}{{\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f}")
+st.latex(rf"U_T = \sqrt{{\frac{{4 g D_p (\rho_L - \rho_v)}}{{3 \rho_v C_D}}}} = {U_T:.4f} \text{{ m/s}}")
 
 st.markdown("---")
 
@@ -162,12 +146,12 @@ def generate_html_report():
             h1, h2, h3 {{ color: #000; margin-top: 15px; margin-bottom: 5px; }}
             h1 {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }}
             
-            /* Header Table (New 2-row Grid) */
+            /* Header Table */
             .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .header-table th, .header-table td {{ border: 1px solid #000; padding: 6px; text-align: left; overflow: hidden; white-space: nowrap; }}
             .header-table th {{ background-color: #f2f2f2; font-weight: bold; }}
             
-            /* Data Tables (Strict 25% Grid) */
+            /* Data Tables (Strict 25% Grid, no wrap) */
             .data-table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
             .data-table th, .data-table td {{ border: 1px solid #000; padding: 6px; text-align: left; width: 25%; white-space: nowrap; overflow: hidden; }}
             .data-table th {{ background-color: #f2f2f2; font-weight: bold; }}
@@ -222,10 +206,23 @@ def generate_html_report():
 
             <div class="nobreak">
                 <h2>3. Detailed Calculations</h2>
+                
+                <h3>3.1 Actual Vapor Velocity (\\(U_v\\))</h3>
+                <div class="description">Ref: Mass Conservation & Vessel Geometry</div>
                 <div class="math-block">
                     \\[ U_v = \\frac{{W_v}}{{\\rho_v \\cdot 3600 \\cdot A}} = \\mathbf{{{U_V:.4f} \\text{{ m/s}}}} \\]
+                </div>
+                
+                <h3>3.2 Final Drag Coefficient (\\(C_D\\))</h3>
+                <div class="description">Ref: Intermediate Drag Law (API Std 521). Calculated via iterative convergence based on Particle Reynolds Number (\\(Re\\)).</div>
+                <div class="math-block">
                     \\[ Re = \\frac{{D_p \\cdot U_T \\cdot \\rho_v}}{{\\mu_v}} = {Re_final:.2f} \\]
-                    \\[ C_D = \\frac{{24}}{{Re}} + \\frac{{3}}{{\\sqrt{{Re}}}} + 0.34 = {C_D_final:.4f} \\]
+                    \\[ C_D = \\frac{{24}}{{Re}} + \\frac{{3}}{{\\sqrt{{Re}}}} + 0.34 = \\mathbf{{{C_D_final:.4f}}} \\]
+                </div>
+                
+                <h3>3.3 Terminal Settling Velocity (\\(U_T\\))</h3>
+                <div class="description">Ref: API Std 521 Equation for terminal velocity of a droplet settling against upward vapor flow.</div>
+                <div class="math-block">
                     \\[ U_T = \\sqrt{{\\frac{{4 g D_p (\\rho_L - \\rho_v)}}{{3 \\rho_v C_D}}}} = \\mathbf{{{U_T:.4f} \\text{{ m/s}}}} \\]
                 </div>
             </div>
